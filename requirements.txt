@@ -1,0 +1,6 @@
+argparse
+flask
+bs4
+numpy
+pillow
+imgcat
