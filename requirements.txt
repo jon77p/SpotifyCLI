@@ -1,6 +1,8 @@
-argparse
+--extra-index-url https://jon77p.github.io/pypi
 flask
 bs4
 numpy
 pillow
 imgcat
+requests
+argparsejson

@@ -1,4 +1,5 @@
-import argparse
+#!python3
+
 import configparser
 import urllib
 import requests
@@ -13,6 +14,7 @@ from bs4 import BeautifulSoup
 import numpy as np
 from PIL import Image
 import imgcat
+from argparsejson import argparsejson
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -30,75 +32,6 @@ def parse_config():
     refresh_token = app_config.get('refresh token')
 
     return {'app_token': app_token, 'refresh_token': refresh_token}
-
-def parse_arguments():
-    parser = argparse.ArgumentParser()
-
-    subparsers = parser.add_subparsers(dest='mode')
-
-    setup = subparsers.add_parser('setup', help='Setup application')
-    setup.add_argument('clientid', help='Application Client ID')
-    setup.add_argument('clientsecret', help='Application Client Secret')
-
-
-    status = subparsers.add_parser('status', help='Show currently Now Playing information')
-    status.add_argument('--showimg', help='Do not display album artwork', action='store_true', default=False)
-
-
-    browse = subparsers.add_parser('browse', help='Browse API')
-    
-
-    devices = subparsers.add_parser('devices', help='Retrieve the currently available playback devices for this account')
-
-
-    playback = subparsers.add_parser('playback', help='Control Playback')
-    playback.add_argument('-d', '--device', help='Specify a device id to control playback')
-    playback_subparsers = playback.add_subparsers(dest='playback')
-
-    for choice in Spotify.VALID_OPERATIONS.get('playback'):
-        playback_subparsers.add_parser(choice)
-
-
-    playlist = subparsers.add_parser('playlist', help='Playlist Commands')
-    playlist.add_argument('-d', '--device', help='Specify a device id to control playback')
-    playlist_subparsers = playlist.add_subparsers(dest='operation')
-
-    for choice in Spotify.VALID_OPERATIONS.get('playlist'):
-        pl = playlist_subparsers.add_parser(choice)
-        pl.add_argument('playlist', help='Specify a specific playlist name or id to be used for Playlist-related operations.')
-
-        choice_pl = pl.add_mutually_exclusive_group()
-        choice_pl.add_argument('-np', '--nowplaying', help='Indicate that the current Now Playing song should be retrieved and used for Playlist-related operations.', action='store_true', default=False)
-        choice_pl.add_argument('--song', help='Specify a specific track name or id to be used for Playlist-related operations.')
-
-
-    user = subparsers.add_parser('user', help='User Playback Commands')
-    user_subparsers = user.add_subparsers(dest='user')
-
-    recents = user_subparsers.add_parser('recents')
-    recents.add_argument('--limit', help='Specify the maximum number of items to return.', default=20, type=int)
-    recents_before_or_after = recents.add_mutually_exclusive_group()
-    recents_before_or_after.add_argument('--before', help='Returns all items before(but not including) this Unix timestamp cursor position in milliseconds.')
-    recents_before_or_after.add_argument('--after', help='Returns all items after (but not including) this Unix timestamp cursor position in milliseconds.')
-
-    user_status = user_subparsers.add_parser('status')
-
-
-    parser.add_argument('-v', '--verbose', help='Show verbose logging information', action='store_true', default=False)
-
-    args = parser.parse_args()
-
-    if args.mode is None:
-        parser.print_help()
-        exit()
-    elif args.mode == 'playback' and args.playback is None:
-        playback.print_help()
-        exit()
-    elif args.mode == 'user' and args.user is None:
-        user.print_help()
-        exit()
-
-    return args
 
 def getScopes():
     print('Retrieving valid scopes from Spotify...')
@@ -256,7 +189,7 @@ def printRecents(data):
 
 class Spotify:
     VALID_OPERATIONS = {
-        'playback': ['play', 'pause', 'next', 'previous', 'shuffle', 'repeat'],
+        'playback': ['play', 'pause', 'next', 'previous', 'shuffle', 'repeat', 'queue', 'seek'],
         'playlist': ['add', 'remove']
     }
 
@@ -421,9 +354,9 @@ class Spotify:
 
         return data
 
-    def controlPlayback(self, operation, device=None):
+    def controlPlayback(self, operation, device=None, uri=None, seekOffset=0):
         operation = operation.lower()
-        if operation not in self.VALID_PLAYBACK_OPERATIONS:
+        if operation not in self.VALID_OPERATIONS['playback']:
             raise Exception('Invalid playback operation!')
 
         url = self.apiurl + '/me/player/{}'.format(operation)
@@ -441,8 +374,18 @@ class Spotify:
         elif operation == 'repeat':
             params['state'] = self.getPlayback().get('repeat_state', False)
             params['state'] = 'context' if params['state'] == 'off' else 'off'
+        elif operation == 'queue':
+            params['uri'] = uri
+        elif operation == "seek":
+            song = self.currentlyPlaying()
+            duration = int(song['raw']['duration_ms'])
+            seekPos = round(duration * (seekOffset/4))
+            params['position_ms'] = seekPos
 
-        res = requests.put(url, headers=self.headers, params=params)
+        if operation == 'queue':
+            res = requests.post(url, headers=self.headers, params=params)
+        else:
+            res = requests.put(url, headers=self.headers, params=params)
 
         data = {'status_code': res.status_code}
         if res.status_code == 204:
@@ -554,7 +497,7 @@ class Spotify:
         album = song.get('album', {}).get('name')
         uri = song.get('uri')
 
-        return {'status': 'success', 'artwork': imgurl, 'track': track, 'artist': artist, 'album': album, 'uri': uri, 'playlist': playlist, 'playlist_uri': playlist_uri}
+        return {'status': 'success', 'artwork': imgurl, 'track': track, 'artist': artist, 'album': album, 'uri': uri, 'playlist': playlist, 'playlist_uri': playlist_uri, 'raw': song}
 
     def getRecentlyPlayed(self, limit=20, before=None, after=None):
         data = self._recentlyPlayed(limit=limit, before=before, after=after) 
@@ -567,19 +510,24 @@ class Spotify:
         status = connected_user.get('status')
         profile = connected_user.get('images', []).pop().get('url')
 
-        self.showImage(profile)
+        showImage(profile)
 
         return '<Spotify (\'{}\' - {})>'.format(user, status)
 
 if __name__ == "__main__":
-    args = parse_arguments()
+    parser = argparsejson.parse_arguments(os.path.join(SCRIPT_DIR, "commands.json"), prog=__file__)
+    args = parser.parse_args()
 
-    if args.verbose is True:
+    if args.verbose:
         VERBOSE_STDOUT = sys.stdout
     else:
         VERBOSE_STDOUT = open(os.devnull, 'w')
 
-    if args.mode == 'setup':
+    print(args, file=VERBOSE_STDOUT, flush=True)
+
+    if args.mode is None:
+        parser.print_help()
+    elif args.mode == 'setup':
         if args.clientid:
             clientid = args.clientid
 
@@ -614,7 +562,17 @@ if __name__ == "__main__":
             else:
                 device = None
 
-            status = client.controlPlayback(operation, device=device)
+            if operation == "queue" and args.uri:
+                uri = args.uri
+            else:
+                uri = None
+
+            if operation == "seek":
+                seek = args.duration
+            else:
+                seek = 0
+
+            status = client.controlPlayback(operation, device=device, uri=uri, seekOffset=seek)
             printControlPlayback(status)
 
         elif args.mode == 'playlist':
@@ -674,5 +632,5 @@ if __name__ == "__main__":
             elif args.user == 'status':
                 print(client)
 
-    if args.verbose is False:
+    if not args.verbose:
         VERBOSE_STDOUT.close()

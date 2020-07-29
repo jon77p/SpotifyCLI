@@ -1,0 +1,181 @@
+{
+  "args": [
+    {
+      "name": "--json",
+      "action": "store_true"
+    },
+    {
+      "abbrev": "-v",
+      "name": "--verbose",
+      "help": "Show verbose logging information",
+      "action": "store_true"
+    }
+  ],
+  "subparser_params": {
+    "dest": "mode"
+  },
+  "subparsers": [
+    {
+      "name": "help",
+      "help": "show this help message"
+    },
+    {
+      "name": "usage",
+      "help": "show this usage message"
+    },
+    {
+      "name": "setup",
+      "help": "Setup application",
+      "args": [
+        {
+          "name": "clientid",
+          "help": "Application Client ID"
+        },
+        {
+          "name": "clientsecret",
+          "help": "Application Client Secret"
+        }
+      ]
+    },
+    {
+      "name": "status",
+      "help": "Show currently Now Playing information",
+      "args": [
+        {
+          "name": "--showimg",
+          "help": "Do not display album artwork",
+          "action": "store_true"
+        }
+      ]
+    },
+    {
+      "name": "browse",
+      "help": "Browse API"
+    },
+    {
+      "name": "devices",
+      "help": "Retrieve the currently available playback devices for this account"
+    },
+    {
+      "name": "playback",
+      "help": "Control Playback",
+      "args": [
+        {
+          "abbrev": "-d",
+          "name": "--device",
+          "help": "Specify a device id to control playback"
+        }
+      ],
+      "subparser_params": {
+        "dest": "playback",
+        "required": true
+      },
+      "subparsers": [
+        {"name": "play"},
+        {"name": "pause"},
+        {"name": "next"},
+        {"name": "previous"},
+        {"name": "shuffle"},
+        {"name": "repeat"},
+        {
+          "name": "queue",
+          "args": [
+            {
+              "name": "--uri"
+            }
+          ]
+        },
+        {
+          "name": "seek",
+          "args": [
+            {
+              "name": "duration",
+              "type": "int"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "playlist",
+      "help": "Playlist Commands",
+      "args": [
+        {
+          "abbrev": "-d",
+          "name": "--device",
+          "help": "Specify a device id to control playback"
+        }
+      ],
+      "subparser_params": {
+        "dest": "operation",
+        "required": true
+      },
+      "subparsers": [
+        {
+          "name": "add",
+          "args": [
+            {
+              "name": "playlist",
+              "help": "Specify a specific playlist name or id to be used for Playlist-related operations."
+            },
+            {
+              "mutually_exclusive_group": {
+                "args": [
+                  {
+                    "abbrev": "-np",
+                    "name": "--nowplaying",
+                    "help": "Indicate that the current Now Playing song should be retrieved and used for Playlist-related operations.",
+                    "action": "store_true"
+                  },
+                  {
+                    "name": "--song",
+                    "help": "Specify a specific track name or id to be used for Playlist-related operations."
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {"name": "remove"}
+      ]
+    },
+    {
+      "name": "user",
+      "help": "User Playback Commands",
+      "subparser_params": {
+        "dest": "user",
+        "required": true
+      },
+      "subparsers": [
+        {
+          "name": "recents",
+          "args": [
+            {
+              "name": "--limit",
+              "help": "Specify the maximum number of items to return.",
+              "type": "int",
+              "default": 20
+            },
+            {
+              "mutually_exclusive_group": {
+                "args": [
+                  {
+                    "name": "--before",
+                    "help": "Returns all items before (but not including) the specified Unix timestamp cursor position in milliseconds."
+                  },
+                  {
+                    "name": "--after",
+                    "help": "Returns all items after(but not including) the specified Unix timestamp cursor position in milliseconds."
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "status"
+        }
+      ]
+    }
+  ]
+}
