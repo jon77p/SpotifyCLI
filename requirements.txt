@@ -6,3 +6,4 @@ pillow
 imgcat
 requests
 argparsejson
+pillow>=8.3.0 # not directly required, pinned by Snyk to avoid a vulnerability
